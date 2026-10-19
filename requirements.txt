@@ -10,6 +10,6 @@ newspaper3k
 lxml_html_clean
 pytesseract
 pillow
-opencv-python
+opencv-python-headless
 ddgs
 reportlab
