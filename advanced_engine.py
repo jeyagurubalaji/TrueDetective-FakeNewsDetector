@@ -21,7 +21,6 @@ def extract_text_from_source(input_type, raw_input):
     return raw_input
 
   elif input_type == "News Article URL":
-    # Extract clean topic slug from URL path as a foolproof fallback
     url_slug_text = ""
     try:
       parsed_url = urllib.parse.urlparse(raw_input)
@@ -69,7 +68,7 @@ def extract_text_from_source(input_type, raw_input):
     except Exception:
       pass
 
-    # Attempt 3: Intelligent URL Slug Fallback (Bypasses all scraper blocks)
+    # Attempt 3: Intelligent URL Slug Fallback
     if url_slug_text and len(url_slug_text) > 4:
       return f"News regarding {url_slug_text}"
 
@@ -97,7 +96,6 @@ def extract_text_from_source(input_type, raw_input):
 
   elif input_type == "Video File":
     try:
-      # Extract keywords from uploaded filename to provide search context
       file_name = getattr(raw_input, "name", "news video clip")
       clean_filename_query = (
           re.sub(r"\.[^/.]+$", "", file_name)
@@ -165,23 +163,59 @@ def live_web_cross_reference(query):
 
 
 def compute_sensationalism_score(text):
-  """Computes a secondary clickbait / sensationalism score."""
-  trigger_words = [
+  """Computes an enhanced clickbait / sensationalism score based on comprehensive trigger words, uppercase emphasis, and punctuation."""
+  if not text or not isinstance(text, str):
+    return 0.0
+
+  words = re.findall(r"\b\w+\b", text)
+  if not words:
+    return 0.0
+
+  trigger_words = {
       "shocking",
       "unbelievable",
       "exposed",
       "secret",
-      "they don't want you to know",
       "miracle",
       "epic",
       "bombshell",
-      "you won't believe",
       "scandal",
-  ]
+      "horrifying",
+      "banned",
+      "hidden",
+      "insane",
+      "slams",
+      "blasts",
+      "destroys",
+      "outrage",
+      "warning",
+      "urgent",
+      "breaking",
+      "viral",
+      "massive",
+      "monster",
+      "crazier",
+      "unheard",
+  }
+
+  score = 0.0
   lower_text = text.lower()
-  matches = sum(1 for word in trigger_words if word in lower_text)
-  score = min(float(matches) * 20.0 + (10.0 if "!" in text else 0.0), 100.0)
-  return score
+
+  # 1. Lexicon trigger matching
+  matched_count = sum(1 for word in trigger_words if word in lower_text)
+  score += float(matched_count) * 22.0
+
+  # 2. Excessive punctuation check (e.g. '!!!', '?!')
+  punctuation_hype = len(re.findall(r"[!?]{2,}", text))
+  score += float(punctuation_hype) * 15.0
+
+  # 3. Uppercase hype words
+  uppercase_words = [w for w in words if w.isupper() and len(w) > 2]
+  score += float(len(uppercase_words)) * 10.0
+
+  # Normalize score between 0.0% and 100.0%
+  final_score = round(min(score, 100.0), 1)
+  return final_score
 
 
 def generate_pdf_report(
