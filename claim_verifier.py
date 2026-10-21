@@ -2,44 +2,46 @@ import re
 
 
 def extract_key_claims(text):
-  """Extracts key factual claims using sentence splitters and numeric/entity identifiers."""
+  """Extracts key factual claims from input text by identifying factual assertions and key entities."""
   if not text or not isinstance(text, str):
     return ["No extractable text found in input source."]
 
-  sentences = re.split(r"(?<=[.!?]) +", text)
+  # Clean extra whitespaces
+  clean_text = " ".join(text.split())
+
+  # Split into sentences using punctuation delimiters
+  sentences = re.split(r"(?<=[.!?])\s+", clean_text)
   claims = []
 
-  for s in sentences:
-    clean_s = s.strip()
-    # Highlight claims containing numbers, percentages, or high-value assertion verbs
-    if re.search(
-        r"\d+|percent|announced|discovered|claimed|proved|official|referendum|vote|court|president|minister",
-        clean_s,
-        re.IGNORECASE,
-    ):
-      if len(clean_s) > 15:
-        claims.append(clean_s)
-
-  # Fallback if no specific keyword matches are found
-  if not claims:
-    for s in sentences:
-      clean_s = s.strip()
-      if len(clean_s) > 20:
-        claims.append(clean_s)
-
-  return (
-      claims[:4]
-      if claims
-      else [text[:120] + ("..." if len(text) > 120 else "")]
+  # High-value keywords indicating core factual claims
+  claim_keywords = re.compile(
+      r"\b(investigators|investigation|allegations|probe|fraud|announced|court|official|police|government|dhs|ice|president|minister|found|reported|stated|confirmed|percent|\d+)\b",
+      re.IGNORECASE,
   )
 
+  for s in sentences:
+    sentence = s.strip()
+    if len(sentence) < 15:
+      continue
 
-# Alias for backward compatibility
+    if claim_keywords.search(sentence):
+      claims.append(sentence)
+
+  # Fallback if no specific keyword matches trigger
+  if not claims:
+    claims = [s.strip() for s in sentences if len(s.strip()) > 20]
+
+  # Return top 4 distinct claims or clean fallback
+  unique_claims = list(dict.fromkeys(claims))
+  return unique_claims[:4] if unique_claims else [clean_text]
+
+
+# Backward compatibility alias
 extract_claims = extract_key_claims
 
 
 def verify_evidence(claims, related_articles):
-  """Cross-references extracted claims against other collected articles."""
+  """Cross-references extracted claims against collected articles."""
   supporting = 0
   contradicting = 0
 
