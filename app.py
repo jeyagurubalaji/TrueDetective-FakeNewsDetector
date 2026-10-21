@@ -8,7 +8,6 @@ st.set_page_config(
     page_icon="🕵️‍♂️",
     layout="wide",
 )
-
 st.title("🕵️‍♂️ True Detective — Global AI Fact-Checking Engine")
 st.markdown(
     "Advanced multi-modal verification powered by machine learning,"
