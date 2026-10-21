@@ -8,6 +8,7 @@ st.set_page_config(
     page_icon="🕵️‍♂️",
     layout="wide",
 )
+
 st.title("🕵️‍♂️ True Detective — Global AI Fact-Checking Engine")
 st.markdown(
     "Advanced multi-modal verification powered by machine learning,"
@@ -82,16 +83,21 @@ if st.button("Check Article Now", type="primary"):
 
         st.info(f"**Verification Details:** {analysis['explanation']}")
 
-        # Feature 1: SHAP Explainability & Feature Importance Dashboard
-        if feature_weights:
-          with st.expander(
-              "📊 AI Feature Attribution & Explainability (SHAP-Style Insights)"
-          ):
+        # Feature 1: Always Visible AI Feature Attribution & Explainability Dashboard
+        with st.expander(
+            "📊 AI Feature Attribution & Explainability (SHAP-Style Insights)"
+        ):
+          if feature_weights:
             st.markdown(
                 "Top linguistic tokens contributing to the model classification"
                 " weight:"
             )
             st.bar_chart(feature_weights)
+          else:
+            st.info(
+                "No significant keyword feature weights generated for this"
+                " input."
+            )
 
         # Extracted Key Claims
         st.markdown("### 🔍 Extracted Key Claims:")
