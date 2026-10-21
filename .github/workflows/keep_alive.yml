@@ -2,11 +2,13 @@ name: Keep Streamlit Awake
 
 on:
   schedule:
-    - cron: '0 */10 * * *' # Runs every 10 hours
+    # Runs every 5 minutes to keep the Streamlit instance continuously awake
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub Actions tab
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
       - name: Ping Streamlit App
-        run: curl -s https://truedetective.streamlit.app > /dev/null
+        run: curl -s -I https://truedetective.streamlit.app | head -n 1
