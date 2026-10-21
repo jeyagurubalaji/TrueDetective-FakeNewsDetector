@@ -1,149 +1,125 @@
-import streamlit as st
-from advanced_engine import (
-    compute_sensationalism_score,
-    extract_text_from_source,
-    generate_pdf_report,
-    live_web_cross_reference,
-)
-from claim_verifier import extract_claims
+import advanced_engine
+from claim_verifier import extract_key_claims
 from ml_engine import RealFakeClassifier
+import streamlit as st
 
-# Page Configuration
 st.set_page_config(
-    page_title="True Detective — Global AI Fake News Detector",
-    layout="wide",
+    page_title="True Detective — AI Fact-Checking Engine",
     page_icon="🕵️‍♂️",
+    layout="wide",
 )
 
-# 1. Cache the heavy ML model resource so it loads ONCE in RAM
-@st.cache_resource
-def get_classifier():
-  return RealFakeClassifier()
-
-
-classifier = get_classifier()
-
-# Main Title & Description
-st.title("🕵️‍♂️ True Detective — Global AI Fake News Detector")
-st.caption(
-    "Universal Real-Time Fact-Checking & Verification Engine with Multi-Modal"
-    " Analysis (Text, URLs, Images & Videos)"
+st.title("🕵️‍♂️ True Detective — Global AI Fact-Checking Engine")
+st.markdown(
+    "Advanced multi-modal verification powered by machine learning,"
+    " semantic vector matching, and real-time web cross-referencing."
 )
-
 st.markdown("---")
 
-# Input Mode Selector
-input_mode = st.radio(
+classifier = RealFakeClassifier()
+
+input_type = st.radio(
     "Select Input Ingestion Mode:",
     ["Plain Text", "News Article URL", "Screenshot / Image", "Video File"],
     horizontal=True,
 )
 
 raw_input = None
-if input_mode == "Plain Text":
+if input_type == "Plain Text":
   raw_input = st.text_area(
-      label="Paste news text or article statement to verify:",
-      height=130,
-      placeholder=(
-          "e.g., Jane Doe alleges sexual assault at Cornell University"
-          " fraternity..."
-      ),
+      "Paste news text or article statement to verify:", height=120
   )
-elif input_mode == "News Article URL":
-  raw_input = st.text_input(
-      label="Enter News Article URL (BBC, Reuters, etc.):",
-      placeholder="https://www.reuters.com/world/...",
-  )
-elif input_mode == "Screenshot / Image":
+elif input_type == "News Article URL":
+  raw_input = st.text_input("Enter News Article URL:")
+elif input_type == "Screenshot / Image":
   raw_input = st.file_uploader(
       "Upload Image / Screenshot (PNG, JPG):", type=["png", "jpg", "jpeg"]
   )
-elif input_mode == "Video File":
+elif input_type == "Video File":
   raw_input = st.file_uploader(
       "Upload Video Clip (MP4, AVI, MOV):", type=["mp4", "avi", "mov"]
   )
 
-# Execution Button
 if st.button("Check Article Now", type="primary"):
   if not raw_input:
-    st.warning(
-        "Please provide input text, URL, image, or video before checking."
-    )
+    st.warning("Please provide an input source before running verification.")
   else:
-    try:
-      with st.spinner(
-          "Extracting content and analyzing claims (processing frames/OCR)..."
-      ):
-        # 1. Extract text using multi-modal ingestion
-        input_text = extract_text_from_source(input_mode, raw_input)
+    with st.spinner(
+        "Running multi-modal OCR ingestion, vector similarity, and live web"
+        " audit..."
+    ):
+      try:
+        extracted_text = advanced_engine.extract_text_from_source(
+            input_type, raw_input
+        )
+        analysis = classifier.analyze("", extracted_text)
+        sensationalism = advanced_engine.compute_sensationalism_score(
+            extracted_text
+        )
+        claims = extract_key_claims(extracted_text)
+        matches = advanced_engine.live_web_cross_reference(extracted_text[:100])
 
-        if not input_text or len(str(input_text).strip()) < 5:
-          st.error(
-              "Extracted text is too short or empty. Please check your source."
-          )
+        status = analysis["status"]
+        confidence = analysis["confidence"]
+        semantic_sim = analysis.get("semantic_similarity", 0.0)
+        feature_weights = analysis.get("feature_weights", {})
+
+        # Status Banner
+        if status == "LIKELY TRUE":
+          st.success(f"### Assessment: {status}")
+        elif status == "MISLEADING":
+          st.warning(f"### Assessment: {status}")
+        elif status == "LIKELY FALSE":
+          st.error(f"### Assessment: {status}")
         else:
-          # 2. Run Classification & Claim Extraction
-          res = classifier.analyze("Instant Check", input_text)
-          claims = extract_claims(input_text)
+          st.info(f"### Assessment: {status}")
 
-          # 3. Compute Sensationalism / Clickbait Score
-          sensationalism = compute_sensationalism_score(input_text)
+        # Metrics Dashboard
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Model Confidence", f"{confidence}%")
+        col2.metric("Sensationalism Meter", f"{sensationalism}%")
+        col3.metric("Semantic Vector Match", f"{semantic_sim}%")
+        col4.metric("Status Signal", status)
 
-          # 4. Real-time Live Web Cross-Reference
-          web_matches = live_web_cross_reference(input_text[:100])
+        st.info(f"**Verification Details:** {analysis['explanation']}")
 
-          st.markdown("---")
+        # Feature 1: SHAP Explainability & Feature Importance Dashboard
+        if feature_weights:
+          with st.expander(
+              "📊 AI Feature Attribution & Explainability (SHAP-Style Insights)"
+          ):
+            st.markdown(
+                "Top linguistic tokens contributing to the model classification"
+                " weight:"
+            )
+            st.bar_chart(feature_weights)
 
-          # Display Assessment Status
-          status = res.get("status", "UNVERIFIED")
-          confidence = res.get("confidence", 50.0)
-          explanation = res.get("explanation", "")
+        # Extracted Key Claims
+        st.markdown("### 🔍 Extracted Key Claims:")
+        for claim in claims:
+          st.markdown(f"• {claim}")
 
-          if status == "LIKELY TRUE":
-            st.success(f"### Assessment: {status}")
-          elif status == "LIKELY FALSE":
-            st.error(f"### Assessment: {status}")
-          else:
-            st.warning(f"### Assessment: {status}")
-
-          # Metrics Display
-          col1, col2, col3 = st.columns(3)
-          with col1:
-            st.metric("Model Confidence", f"{confidence}%")
-          with col2:
-            st.metric("Sensationalism Meter", f"{sensationalism}%")
-          with col3:
-            st.metric("Status Signal", status)
-
-          if explanation:
-            st.info(f"**Verification Details:** {explanation}")
-
-          # Display Extracted Claims
-          if claims:
-            st.subheader("🔍 Extracted Key Claims:")
-            for claim in claims:
-              st.write(f"• {claim}")
-
-          # Display Live Web Cross-Reference Matches
-          if web_matches:
-            st.subheader("🌐 Real-Time Cross-Reference Sources:")
-            for m in web_matches:
-              st.markdown(f"- [{m['title']}]({m['href']})")
-              if m.get("body"):
-                st.caption(m["body"])
-
-          # 5. Exportable PDF Report Generator
-          st.markdown("---")
-          st.subheader("📄 Download Fact-Check Audit Report")
-          pdf_bytes = generate_pdf_report(
-              input_text, status, confidence, sensationalism, web_matches
-          )
-          st.download_button(
-              label="📥 Download PDF Report",
-              data=pdf_bytes,
-              file_name="TrueDetective_Audit_Report.pdf",
-              mime="application/pdf",
+        # Real-Time Cross-Reference Sources
+        st.markdown("### 🌐 Real-Time Cross-Reference Sources:")
+        if matches:
+          for m in matches:
+            st.markdown(f"- **[{m['title']}]({m['href']})**")
+            st.markdown(f"  > *{m.get('body', '')[:180]}...*")
+        else:
+          st.markdown(
+              "_No direct live search matches retrieved from current index._"
           )
 
-    except Exception as e:
-      st.error(f"An error occurred during verification: {str(e)}")
+        # PDF Report Download
+        pdf_bytes = advanced_engine.generate_pdf_report(
+            extracted_text, status, confidence, sensationalism, matches
+        )
+        st.download_button(
+            label="📥 Download Audit Report (PDF)",
+            data=pdf_bytes,
+            file_name="TrueDetective_Audit_Report.pdf",
+            mime="application/pdf",
+        )
+
+      except Exception as e:
+        st.error(f"An error occurred during pipeline execution: {str(e)}")
